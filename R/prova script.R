@@ -72,7 +72,12 @@ dati_2022 %>% mutate(pancov = replace_na(pancov, "NEG"),
               pivot_wider(names_from = "specie", values_from = "materiale") %>% view()
 #mmm da aggiustare... ciclo for?
 
+#è necessario pulire i nomi dei conferimenti per renderli univoci, facendo attenzione
+#ad anni e numero del campione... colonna a parte sarebbe adatta
 
+#girare dati in modo che ogni matrice sia su una colonna, con esito come 0 o 1,
+# così facendo posso sommare e sapere quando una è positiva
+#potrei anche mettere le due prove su righe diverse
 
 
 
