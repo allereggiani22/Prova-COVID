@@ -8,7 +8,7 @@ dati <- read_excel("dati/Dati COVID 2022 per corso R.xlsx",
                                  "text", "text", "text", "skip"))
 
 dati <- clean_names(dati)
-view(dati)
+#view(dati)
 
 
 #unique(dati$Specie)
@@ -29,7 +29,7 @@ dati_2022 <- dati %>%
   mutate(across(c("conf_orig","provenienza","sacco"), na.locf)) %>% 
   select(-campioni_conf)  #più ordinato di versione precedente
 
- n_distinct(dati_2022$conf_orig)
+ #n_distinct(dati_2022$conf_orig)
 
 # Tabella frequenza per provincia -----------------------------------------
 
@@ -39,7 +39,9 @@ prov <- table(dati$provenienza)
 round(prov/n_distinct(dati_2022$conf_orig)*100, 0)
 
 prov2 <- as.data.frame(prov)
-prov2 %>% add_column(percent = round(prov2$Freq/n_distinct(dati_2022$conf_orig)*100,0)) %>% view()
+prov2 %>% add_column(percent = round(prov2$Freq/n_distinct(dati_2022$conf_orig)*100,0)) %>% 
+  rename(Provincia = Var1, Totale = Freq, Percentuale= percent) %>% arrange(desc(Totale)) %>% view()
+  
 
 
 # Prove analisi --------------------------------------------
@@ -51,7 +53,7 @@ dati_2022 <- dati_2022 %>%
   filter(!is.na(specie)) %>% 
   filter(specie != "CINGHIALE")
 
-unique(dati_2022$materiale)
+#unique(dati_2022$materiale)
 
 dati_2022 <- dati_2022 %>% 
   mutate(materiale = replace(materiale, materiale %in% "T. NAS", "T.NAS"),
@@ -59,18 +61,45 @@ dati_2022 <- dati_2022 %>%
          materiale = replace(materiale, materiale %in% c("ILEO/DIGIUNO", "DIGIUNO","DUODENO"), "INTESTINO"),
          materiale = replace(materiale, materiale %in% "SENI NASALI", "T.NAS"))
 
-unique(dati_2022$specie)
+#unique(dati_2022$specie)
 
 
 #voglio arrivare a fare un summary di quanti animali positivi a pancov per specie
 
-dati_2022 %>% mutate(pancov = replace_na(pancov, "NEG"),
-                     esito = replace_na(esito, "Negativo")) %>% 
-              filter(pancov == "POS") %>%
-              group_by(conf_orig, specie) %>% 
-              summarise(materiale) %>% 
-              pivot_wider(names_from = "specie", values_from = "materiale") %>% view()
-#mmm da aggiustare... ciclo for?
+tab_pc <- dati_2022 %>% 
+  mutate(pancov = replace_na(pancov, "NEG"),
+         esito = replace_na(esito, "Negativo"),
+         pancov = ifelse(pancov=="POS",1,0)) %>% 
+  pivot_wider(names_from = materiale, values_from = pancov, values_fill = 0) %>% 
+  select(-progr, -conf_mo) %>% 
+  select(-3,-5,-6,-8,-9,-10) %>%
+  group_by(conf_orig, specie,provenienza) %>% 
+  summarise(across(where(is.numeric), ~ sum(.x, na.rm = T))) %>% #collasso righe di stesso conferimento sommando i valori sulle colonne
+  ungroup() %>% 
+  rowwise() %>% 
+  mutate(somma = sum(c_across(c(4:17))),
+         Pos_Pancov = ifelse(somma >=1, "Pos", "Neg")) %>% 
+  select(-(4:17)) %>% #filter(Pos_Pancov == "Pos") %>%  
+  group_by(specie) %>% 
+  summarise(N_individui = n(), POS = sum(Pos_Pancov == "Pos"), NEG= sum(Pos_Pancov == "Neg"))
+   
+tab_pc %>% filter(NEG > 1) %>%  select(-2) %>% pivot_longer(!specie, names_to = "pancov", values_to = "totali") %>%
+  ggplot()+
+  geom_col(position = "stack", aes(x=fct_reorder(specie, totali), y=totali, fill=pancov))+
+  #geom_text(aes(label = pancov), size = 3, hjust = 0.5, vjust = 3, position = "stack")
+  theme_minimal()+
+  labs(x="Specie")+
+  coord_flip()
+  
+#non riesco ad aggiungere etichette... provare a vedere lezioni
+
+tab_pc %>% write.xlsx(file = here("Summary positivi Pancov per specie.xlsx"))
+  
+            
+  
+
+#guardare codice delle zecche per proseguire... ora dovrei collassare sommando le righe di stessi conf
+
 
 #è necessario pulire i nomi dei conferimenti per renderli univoci, facendo attenzione
 #ad anni e numero del campione... colonna a parte sarebbe adatta
