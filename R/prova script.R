@@ -7,6 +7,9 @@ dati <- read_excel("dati/Dati COVID 2022 per corso R.xlsx",
                                  "text", "text", "date", "text", "date", 
                                  "text", "text", "text", "skip"))
 
+
+
+
 dati <- clean_names(dati)
 #view(dati)
 
@@ -83,12 +86,13 @@ tab_pc <- dati_2022 %>%
   group_by(specie) %>% 
   summarise(N_individui = n(), POS = sum(Pos_Pancov == "Pos"), NEG= sum(Pos_Pancov == "Neg"))
    
-tab_pc %>% filter(NEG > 1) %>%  select(-2) %>% pivot_longer(!specie, names_to = "pancov", values_to = "totali") %>%
+tab_pc %>% filter(NEG > 1) %>%  select(-2) %>% pivot_longer(!specie, names_to = "Pancov", values_to = "totali") %>%
   ggplot()+
-  geom_col(position = "stack", aes(x=fct_reorder(specie, totali), y=totali, fill=pancov))+
-  #geom_text(aes(label = pancov), size = 3, hjust = 0.5, vjust = 3, position = "stack")
+  aes(x=fct_reorder(specie, totali), y=totali, fill=Pancov)+
+  geom_col(position = "stack")+
+  geom_text(aes(specie, label = ifelse(totali>0, totali,"")), position = position_stack(vjust = 1.02))+#, size = 5, hjust = 0.5, vjust = -0.5, position = position_dodge(width = 1))+
+  labs(x="Specie", y="Totali", title = "Risultati Pancov 2022", subtitle = "escluse le specie di cui presente un solo individuo negativo")+
   theme_minimal()+
-  labs(x="Specie")+
   coord_flip()
   
 #non riesco ad aggiungere etichette... provare a vedere lezioni
