@@ -150,23 +150,42 @@ sieri2023 <-  read_excel("dati/23062023 Elenco Campioni PRC 2021_006.xlsx",
 sieri2023 <- sieri2023[-194,] %>% select(-8)
 sieri <- bind_rows(sieri2022, sieri2023) #ho rimosso dall'excel le S e le U dai nconf...
 
+
 #voglio fare tabella tipo tab_pc per ELISA ed sELISA, poi aggiungerla a tab_pc
 
+view(sieri)
+unique(sieri$ELISA)
+tab_sieri <- sieri %>% mutate(ELISA = replace(ELISA, ELISA %in% c("INSUFF", "ASSENTE"), NA)) %>% 
+  filter(!is.na(ELISA)) %>% filter(Specie != "GATTO") %>% filter(! (`Conf. orig`==32419 & ELISA=="NEG")) %>% #il conferimento 32419 risultava 1 volta pos ed 1 neg su 2 campioni di siero. distinct() teneva solo il negativo, per cui l'ho rimosso. devo trovare alternativa per il futuro.
+  mutate(ELISA = ifelse(ELISA=="POS", 1, 0),
+         sELISA = ifelse(sELISA=="POS", 1, 0), 
+         Materiale = ifelse(Materiale %in% c("UMOR VITREO", "UMOR"), "UMOR ACQUEO", Materiale)) %>% 
+  mutate(Materiale = ifelse(Materiale %in% c("UMOR ACQUEO", "MUSCOLO"), Materiale, "SIERO")) %>% 
+distinct(`Conf. orig`, .keep_all = T) %>%
+pivot_wider(names_from = Materiale, values_from = ELISA, values_fill = 0) %>%
+select(-NOTE, -`% POS`) %>%
+group_by(`Conf. orig`, Specie) %>% 
+summarise(across(where(is.numeric), ~ sum(.x, na.rm = T))) %>%
+  ungroup() %>% 
+  rowwise() %>% 
+  mutate(ELISA = ifelse(sum(c_across(c(4:5))) >=1, "Pos", "Neg"),
+         sELISA = ifelse(sELISA==1, "Pos", "Neg")) %>%
+select(-SIERO, -`UMOR ACQUEO`) %>%
+relocate(ELISA, .before = sELISA) 
+  
+library(flextable)
+
+ft_sieri <- tab_sieri %>% 
+  group_by(Specie) %>% 
+  summarise(Totali = n(), ELISA = sum(ELISA == "Pos"), sELISA= sum(sELISA == "Pos")) %>% 
+  arrange(desc(ELISA)) %>% flextable() %>% autofit()
+
+ft_sieri %>% 
+save_as_image(., here("Prova export.png"), expand=15, res = 200) #non capisco perché metta trasparenza, ma con paint poi si vede bene...
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+sum(ft_sieri$ELISA)
+sum(ft_sieri$sELISA)
 
 
 
